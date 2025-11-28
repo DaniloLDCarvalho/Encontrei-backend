@@ -23,4 +23,31 @@ router.post('/', async (req, res) => {
   }
 })
 
+router.get('/:id', async (req, res) => {
+  try {
+    const reservation = await reservationService.getById(req.params.id)
+    res.json(reservation)
+  } catch (err) {
+    res.status(404).json({ error: err.message })
+  }
+})
+
+router.put('/:id', async (req, res) => {
+  try {
+    const reservation = await reservationService.updateReservation(req.params.id, req.body)
+    res.json(reservation)
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+router.delete('/:id', async (req, res) => {
+  try {
+    await reservationService.deleteReservation(req.params.id)
+    res.json({ message: 'Reserva removida com sucesso' })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 module.exports = router
