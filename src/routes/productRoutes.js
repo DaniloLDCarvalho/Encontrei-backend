@@ -11,6 +11,7 @@ router.get('/', async (req, res) => {
   }
 })
 
+/*
 router.get('/:id', async (req, res) => {
   try {
     const product = await productService.getProduct(req.params.id)
@@ -20,5 +21,22 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ error: err.message })
   }
 })
+*/
+
+router.get("/buscar", async (req, res) => {
+  const query = req.query.q;
+
+  if (!query) {
+    return res.status(400).json({ error: "Parâmetro q é obrigatório" });
+  }
+
+  try {
+    const result = await productService.buscarProdutos(query);
+    return res.json(result);
+  } catch (err) {
+    console.error("Erro:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router
