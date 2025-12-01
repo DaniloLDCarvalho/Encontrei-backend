@@ -1,7 +1,8 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import re
-import pandas as pd
+import json
+import sys
 
 CATEGORY_SYNONYMS = {
     "vestido": ["vestido", "vestidinho", "vestidão"],
@@ -36,9 +37,9 @@ COLOR_SYNONYMS = {
 RE_TAM_LETRA = re.compile(r"\b(PP|P|M|G|GG|XG|XGG)\b", re.IGNORECASE)
 RE_TAM_NUM = re.compile(r"\b(3[4-9]|4[0-4])\b")  # calçados 34-44, ajuste se quiser
 
-# 1. Carregar modelo multilíngue (melhor pra PT-BR)
 model = SentenceTransformer("paraphrase-multilingual-mpnet-base-v2")
 
+'''
 # 2. Catálogo de produtos (categoria/cor/tamanho)
 produtos = [
     {"id": 1, "categoria": "vestido", "cor": "preto", "tamanhos": ["P","M","G"],
@@ -191,11 +192,7 @@ produtos = [
     {"id": 50, "categoria": "blusa", "cor": "verde oliva", "tamanhos": ["P","M","G"],
      "texto": "Blusa básica feminina verde oliva, gola redonda, tamanhos P, M e G"},
 ]
-
-# 3. Gerar embeddings só dos textos
-texts = [p["texto"] for p in produtos]
-emb_produtos = model.encode(texts, normalize_embeddings=True)
-emb_produtos = np.array(emb_produtos).astype("float32")
+'''
 
 
 def extract_filters(query: str):
@@ -204,24 +201,20 @@ def extract_filters(query: str):
     cor = None
     tamanho = None
 
-    # 1) Detectar categoria
     for cat, words in CATEGORY_SYNONYMS.items():
         if any(w in q for w in words):
             categoria = cat
             break
 
-    # 2) Detectar cor
     for base_color, words in COLOR_SYNONYMS.items():
         if any(w in q for w in words):
             cor = base_color
             break
 
-    # 3) Detectar tamanho por letra (P, M, G…)
     m = RE_TAM_LETRA.search(query)
     if m:
         tamanho = m.group(1).upper()
     else:
-        # 4) Detectar tamanho numérico (36, 38…)
         m_num = RE_TAM_NUM.search(q)
         if m_num:
             tamanho = m_num.group(1)
@@ -229,69 +222,51 @@ def extract_filters(query: str):
     return categoria, cor, tamanho
 
 
-def filtrar_indices(categoria=None, cor=None, tamanho=None):
-    """
-    Retorna a lista de índices dos produtos que passam nos filtros.
-    Se o filtro for None, ignora aquele critério.
-    """
+def filtrar_indices(produtos, categoria, cor, tamanho):
     indices_pontuados = []
     for i, p in enumerate(produtos):
         score = 0
+
         if categoria is not None:
             if p["categoria"].lower() != categoria.lower():
                 continue
             else:
-                score+=3
-            
-        # filtro por cor
+                score += 3
+
         if cor is not None:
             if cor.lower() in p["cor"].lower():
-                score+=1
+                score += 1
 
-        # filtro por tamanho
         if tamanho is not None:
             if tamanho.upper() in [t.upper() for t in p["tamanhos"]]:
-                score+=2
+                score += 2
 
-        indices_pontuados.append((i,score))
+        indices_pontuados.append((i, score))
 
-    indices_ordenados = sorted(indices_pontuados, key=lambda x:x[1], reverse=True)
+    indices_ordenados = sorted(indices_pontuados, key=lambda x: x[1], reverse=True)
     return indices_ordenados
 
 
-def buscar(query: str, categoria: str, cor: str, tamanho: str, top_k):
-    """
-    Busca semântica com filtros:
-    - query: texto buscado
-    - top_k: quantos resultados retornar
-    - categoria: ex. "vestido", "blusa", "calça"
-    - cor: ex. "preto", "floral", "branca"
-    - tamanho: ex. "P", "M", "G", "38"
-    """
-    # 1) Filtrar produtos por categoria/cor/tamanho
-    idx_filtrados_ordenados = filtrar_indices(categoria=categoria, cor=cor, tamanho=tamanho)
+def buscar(query: str, produtos, emb_produtos, categoria: str, cor: str, tamanho: str, top_k: int):
+    idx_filtrados_ordenados = filtrar_indices(produtos=produtos, categoria=categoria, cor=cor, tamanho=tamanho)
 
     if len(idx_filtrados_ordenados) == 0:
-        print("Nenhum produto encontrado com esses filtros.")
         return []
 
     manual_scores = {idx: score for idx, score in idx_filtrados_ordenados}
 
-    # 2) Gerar embedding da query
-    emb_query = model.encode([query], normalize_embeddings=True).astype("float32")  # shape: (1, d)
-
-    # 4) Similaridade por produto interno (como está normalizado, é cosseno)
+    emb_query = model.encode([query], normalize_embeddings=True).astype("float32")
     scores_modelo = np.dot(emb_produtos, emb_query[0])
 
-    indices = range((len(produtos)))
+    indices = range(len(produtos))
 
     ranking = sorted(
         indices,
-        key =lambda idx:(
-            manual_scores.get(idx,0),
+        key=lambda idx: (
+            manual_scores.get(idx, 0),
             scores_modelo[idx],
         ),
-        reverse=True
+        reverse=True,
     )
 
     resultados = []
@@ -304,17 +279,47 @@ def buscar(query: str, categoria: str, cor: str, tamanho: str, top_k):
                 "cor": p["cor"],
                 "tamanhos": p["tamanhos"],
                 "texto": p["texto"],
-                "score": float(scores_modelo[idx]),
+                "score_modelo": float(scores_modelo[idx]),
+                "score_manual": float(manual_scores.get(idx, 0)),
             }
         )
 
     return resultados
 
 
-if __name__ == "__main__":
-    query = "calça preta tamanho p"
-    categoria, cor, tamanho = extract_filters(query)
-    resultado = buscar(query, categoria, cor, tamanho, top_k=40)
+def main():
+    # Lê JSON vindo do Node via stdin
+    raw = sys.stdin.read()
+    if not raw:
+        print(json.dumps({"error": "no input"}))
+        return
 
-    df = pd.DataFrame(resultado)
-    df.to_csv("resultados_busca.csv", index=False)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": "invalid JSON input", "details": str(e)}))
+        return
+
+    query = data.get("query", "")
+    produtos = data.get("produtos", [])
+
+    texts = [p["texto"] for p in produtos]
+    emb_produtos = model.encode(texts, normalize_embeddings=True)
+    emb_produtos = np.array(emb_produtos).astype("float32")
+
+    if not query or not produtos:
+        print(json.dumps({"error": "missing query or produtos"}))
+        return
+
+    categoria, cor, tamanho = extract_filters(query)
+    resultados = buscar(query, produtos, emb_produtos, categoria, cor, tamanho, top_k=40)
+    print(json.dumps(resultados, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
+    # query = "calça preta tamanho p"
+    # categoria, cor, tamanho = extract_filters(query)
+    # resultado = buscar(query, categoria, cor, tamanho, top_k=40)
+    # df = pd.DataFrame(resultado)
+    # df.to_csv("resultados_busca.csv", index=False)

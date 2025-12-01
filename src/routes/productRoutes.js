@@ -40,12 +40,30 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+/*
+router.get('/:id', async (req, res) => {
   try {
     await productService.delete(req.params.id);
     return res.json({ message: "Produto removido com sucesso" });
   } catch (err) {
     return res.status(400).json({ error: err.message });
+  }
+})
+*/
+
+router.get("/buscar", async (req, res) => {
+  const query = req.query.q;
+
+  if (!query) {
+    return res.status(400).json({ error: "Parâmetro q é obrigatório" });
+  }
+
+  try {
+    const result = await productService.buscarProdutos(query);
+    return res.json(result);
+  } catch (err) {
+    console.error("Erro:", err);
+    return res.status(500).json({ error: err.message });
   }
 });
 
