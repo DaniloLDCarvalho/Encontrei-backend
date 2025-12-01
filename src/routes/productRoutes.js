@@ -11,8 +11,8 @@ router.get('/', async (req, res) => {
   }
 })
 
-/*
-router.get('/:id', async (req, res) => {
+
+router.get('/id/:id', async (req, res) => {
   try {
     const product = await productService.getProduct(req.params.id)
     if (!product) return res.status(404).json({ error: 'Produto não encontrado' })
@@ -21,7 +21,7 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ error: err.message })
   }
 })
-*/
+
 
 router.get("/buscar", async (req, res) => {
   const query = req.query.q;
