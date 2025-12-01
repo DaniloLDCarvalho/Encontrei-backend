@@ -1,24 +1,50 @@
-const express = require('express')
-const router = express.Router()
-const storeService = require('../services/storeService')
+// src/models/storeModel.js
+const prisma = require('./prisma')
 
-router.get('/', async (req, res) => {
-  try {
-    const stores = await storeService.listStores()
-    res.json(stores)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
+module.exports = {
+  findAll() {
+    return prisma.store.findMany({
+      include: {
+        seller: true,   // usuário dono da loja
+        products: true, // produtos da loja
+      }
+    })
+  },
+
+  findById(id) {
+    return prisma.store.findUnique({
+      where: { id: Number(id) },
+      include: {
+        seller: true,
+        products: true,
+      }
+    })
+  },
+
+  create(data) {
+    return prisma.store.create({
+      data,
+      include: {
+        seller: true,
+        products: true,
+      }
+    })
+  },
+
+  update(id, data) {
+    return prisma.store.update({
+      where: { id: Number(id) },
+      data,
+      include: {
+        seller: true,
+        products: true,
+      }
+    })
+  },
+
+  remove(id) {
+    return prisma.store.delete({
+      where: { id: Number(id) }
+    })
   }
-})
-
-router.get('/:id', async (req, res) => {
-  try {
-    const store = await storeService.getStore(req.params.id)
-    if (!store) return res.status(404).json({ error: 'Loja não encontrada' })
-    res.json(store)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-module.exports = router
+}
