@@ -40,8 +40,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-/*
-router.get('/:id', async (req, res) => {
+
+router.get('/id/:id', async (req, res) => {
   try {
     await productService.delete(req.params.id);
     return res.json({ message: "Produto removido com sucesso" });
@@ -49,7 +49,7 @@ router.get('/:id', async (req, res) => {
     return res.status(400).json({ error: err.message });
   }
 })
-*/
+
 
 router.get("/buscar", async (req, res) => {
   const query = req.query.q;
