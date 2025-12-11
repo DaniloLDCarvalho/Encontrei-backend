@@ -13,10 +13,10 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { productId, buyerId, date, note } = req.body
-    if (!productId || !buyerId || !date) return res.status(400).json({ error: 'productId, buyerId e date são obrigatórios' })
+    const { productId, buyerId, visitDate, notes } = req.body
+    if (!productId || !buyerId || !visitDate) return res.status(400).json({ error: 'productId, buyerId e visitDate são obrigatórios' })
 
-    const reservation = await reservationService.createReservation({ productId, buyerId, date, note })
+    const reservation = await reservationService.createReservation({ productId, buyerId, visitDate, notes })
     res.status(201).json(reservation)
   } catch (err) {
     res.status(400).json({ error: err.message })

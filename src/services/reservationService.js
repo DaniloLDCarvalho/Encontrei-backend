@@ -29,9 +29,9 @@ module.exports = {
       productId: Number(data.productId),
       buyerId: Number(data.buyerId),
       sellerId,
-      date: new Date(data.date),
+      visitDate: new Date(data.visitDate),
       status: 'AGUARDANDO_RETIRADA',
-      note: data.note || null,
+      notes: data.notes || null,
     })
   },
 
@@ -47,8 +47,8 @@ module.exports = {
 
     const updates = {}
     if (data.status !== undefined) updates.status = data.status
-    if (data.date !== undefined) updates.date = new Date(data.date)
-    if (data.note !== undefined) updates.note = data.note
+    if (data.visitDate !== undefined) updates.visitDate = new Date(data.visitDate)
+    if (data.notes !== undefined) updates.notes = data.notes
 
     return reservationModel.update(id, updates)
   },

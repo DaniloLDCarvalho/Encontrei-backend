@@ -3,60 +3,261 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// ============ USER MANAGEMENT ============
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  phone     String?
-  userType  String
-  createdAt DateTime @default(now())
+  id                Int      @id @default(autoincrement())
+  name              String
+  email             String   @unique
+  password          String
+  phone             String?
+  userType          String   // "buyer" or "seller"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  stores    Store[]  @relation("SellerStores")
-  buyerReservations  Reservation[] @relation("BuyerReservations")
+  // Relations
+  stores            Store[]  @relation("SellerStores")
+  sellerProfile     SellerProfile?
+  buyerProfile      BuyerProfile?
+  cartItems         CartItem[]
+  buyerReservations Reservation[] @relation("BuyerReservations")
   sellerReservations Reservation[] @relation("SellerReservations")
+  buyerOrders       Order[] @relation("Orders")
+  sellerOrders      Order[] @relation("SellerOrders")
+  reviews           Review[]
+  addresses         Address[]
+}
+
+// ============ SELLER MANAGEMENT ============
+model SellerProfile {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @unique
+  cpfCnpj     String  @unique
+  businessName String
+  businessSegment String
+  about       String?
+  rating      Float   @default(0)
+  totalReviews Int    @default(0)
+  verified    Boolean @default(false)
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Store {
-  id        Int     @id @default(autoincrement())
-  sellerId  Int
-  name      String
-  cpfCnpj   String
-  segment   String
-  distance  String
+  id          Int     @id @default(autoincrement())
+  sellerId    Int
+  name        String
+  description String?
+  distance    Float   // in meters
+  latitude    Float?
+  longitude   Float?
+  coverImage  String?
+  rating      Float   @default(0)
+  totalReviews Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  seller    User    @relation("SellerStores", fields: [sellerId], references: [id])
-  products  Product[]
+  seller      User    @relation("SellerStores", fields: [sellerId], references: [id], onDelete: Cascade)
+  products    Product[]
+  orders      Order[]
+
+  @@index([sellerId])
 }
 
+// ============ BUYER MANAGEMENT ============
+model BuyerProfile {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @unique
+  preferences String? // JSON for storing preferences
+  rating      Float   @default(0)
+  totalReviews Int    @default(0)
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id          Int     @id @default(autoincrement())
+  userId      Int
+  street      String
+  number      String
+  complement  String?
+  city        String
+  state       String
+  zipCode     String
+  isDefault   Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============ PRODUCT MANAGEMENT ============
 model Product {
-  id        Int     @id @default(autoincrement())
-  storeId   Int
-  name      String
-  category  String
-  price     Float
-  stock     Int
-  sizes     String
-  colors    String
+  id          Int     @id @default(autoincrement())
+  storeId     Int
+  name        String
+  description String?
+  category    String
+  price       Float
+  discount    Float?  // discount percentage
+  stock       Int
+  image       String? // URL or path to image
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  store     Store   @relation(fields: [storeId], references: [id])
+  store       Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  variants    ProductVariant[]
   reservations Reservation[]
+  reviews     Review[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@index([storeId])
+  @@index([category])
 }
 
-model Reservation {
-  id        Int    @id @default(autoincrement())
-  productId Int
-  buyerId   Int
-  sellerId  Int
-  date      DateTime
-  status    String
-  note      String?
+model ProductVariant {
+  id          Int     @id @default(autoincrement())
+  productId   Int
+  size        String?
+  color       String?
+  colorHex    String? // hex code for color
+  sku         String? @unique
+  stock       Int     @default(0)
+  createdAt   DateTime @default(now())
 
-  product   Product @relation(fields: [productId], references: [id])
-  buyer     User    @relation("BuyerReservations", fields: [buyerId], references: [id])
-  seller    User    @relation("SellerReservations", fields: [sellerId], references: [id])
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reservationItems ReservationItem[]
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+
+  @@unique([productId, size, color])
+  @@index([productId])
+}
+
+// ============ SHOPPING CART ============
+model CartItem {
+  id          Int     @id @default(autoincrement())
+  userId      Int
+  productId   Int
+  quantity    Int     @default(1)
+  variantId   Int?    // for size/color selection
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, productId, variantId])
+  @@index([userId])
+  @@index([productId])
+}
+
+// ============ RESERVATIONS (Tentativas de compra/agendamentos) ============
+model Reservation {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  buyerId     Int
+  sellerId    Int
+  visitDate   DateTime // date when buyer wants to visit/reserve
+  status      String   @default("pending") // pending, confirmed, cancelled, completed
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  buyer       User    @relation("BuyerReservations", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller      User    @relation("SellerReservations", fields: [sellerId], references: [id], onDelete: Cascade)
+  items       ReservationItem[]
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([productId])
+  @@index([status])
+}
+
+model ReservationItem {
+  id          Int     @id @default(autoincrement())
+  reservationId Int
+  variantId   Int
+  quantity    Int
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([reservationId])
+}
+
+// ============ ORDERS ============
+model Order {
+  id          Int      @id @default(autoincrement())
+  orderId     String   @unique // #1234 format for display
+  storeId     Int
+  buyerId     Int
+  sellerId    Int
+  total       Float
+  status      String   @default("pending") // pending, confirmed, in_preparation, ready, completed, cancelled
+  paymentMethod String?
+  addressId   Int?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store       Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items       OrderItem[]
+  buyer       User    @relation("Orders", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller      User    @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  variantId   Int?
+  quantity    Int
+  price       Float   // price at time of order
+  discount    Float?
+
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id])
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+}
+
+// ============ REVIEWS & RATINGS ============
+model Review {
+  id          Int     @id @default(autoincrement())
+  productId   Int?
+  storeId     Int?
+  userId      Int
+  rating      Int     // 1-5 stars
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  product     Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+}
+
+// ============ SEARCH & ANALYTICS ============
+model ProductSearch {
+  id          Int     @id @default(autoincrement())
+  userId      Int?
+  query       String
+  category    String?
+  resultCount Int
+  createdAt   DateTime @default(now())
 }
