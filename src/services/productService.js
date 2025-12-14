@@ -38,8 +38,7 @@ module.exports = {
       }
       throw error;
     }
-  }
-};
+  },
 
 buscarProdutos: async (query) => {
   const products = await productModel.findAll();
@@ -97,6 +96,5 @@ buscarProdutos: async (query) => {
   });
 
   return result;
-},
-
-
+}
+};
