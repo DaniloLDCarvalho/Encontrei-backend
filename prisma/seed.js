@@ -5,459 +5,102 @@ async function sleep(ms) {
 }
 
 async function main() {
-  console.log('🌱 Iniciando seed do banco de dados...')
-  const prisma = new PrismaClient()
+  console.log('Seeding database...')
 
-  try {
-    // Limpar prepared statements
-    try {
-      await prisma.$executeRaw`DEALLOCATE ALL;`
-    } catch (e) {
-      // Ignorar erro se não houver prepared statements
-    }
-    
-    await sleep(1000)
-    // ============ LIMPEZA DE DADOS ============
-    console.log('🗑️  Limpando dados existentes...')
-    await prisma.orderItem.deleteMany()
-    await sleep(100)
-    await prisma.order.deleteMany()
-    await sleep(100)
-    await prisma.reservationItem.deleteMany()
-    await sleep(100)
-    await prisma.reservation.deleteMany()
-    await sleep(100)
-    await prisma.cartItem.deleteMany()
-    await sleep(100)
-    await prisma.review.deleteMany()
-    await sleep(100)
-    await prisma.productSearch.deleteMany()
-    await sleep(100)
-    await prisma.productVariant.deleteMany()
-    await sleep(100)
-    await prisma.product.deleteMany()
-    await sleep(100)
-    await prisma.store.deleteMany()
-    await sleep(100)
-    await prisma.address.deleteMany()
-    await sleep(100)
-    await prisma.sellerProfile.deleteMany()
-    await sleep(100)
-    await prisma.buyerProfile.deleteMany()
-    await sleep(100)
-    await prisma.user.deleteMany()
+  // limpando dados existentes
+  await prisma.reservation.deleteMany().catch(()=>{})
+  await prisma.product.deleteMany().catch(()=>{})
+  await prisma.store.deleteMany().catch(()=>{})
+  await prisma.user.deleteMany().catch(()=>{})
 
-    await sleep(500)
+  // Usuários
+  const users = await Promise.all([
+    prisma.user.create({ data: { name: 'Mariana Souza', email: 'mariana.souza@gmail.com', password: 'senha123', phone: '(81) 98888-0001', userType: 'COMPRADOR', createdAt: new Date('2025-02-10') } }),
+    prisma.user.create({ data: { name: 'Ana Costa', email: 'ana.costa@modamei.com', password: 'senha123', phone: '(81) 98888-0002', userType: 'VENDEDOR', createdAt: new Date('2025-02-11') } }),
+    prisma.user.create({ data: { name: 'Dona Maria MEI', email: 'donamaria.boutique@gmail.com', password: 'senha123', phone: '(81) 98888-0003', userType: 'VENDEDOR', createdAt: new Date('2025-02-12') } }),
+    prisma.user.create({ data: { name: 'João Lima', email: 'joao.lima@gmail.com', password: 'senha123', phone: '(81) 98888-0004', userType: 'COMPRADOR', createdAt: new Date('2025-02-12') } })
+  ])
 
-    // ============ CRIAÇÃO DE USUÁRIOS ============
-    console.log('👥 Criando usuários...')
-    
-    const mariana = await prisma.user.create({
-      data: {
-        name: 'Mariana Souza',
-        email: 'mariana.souza@gmail.com',
-        password: 'senha123',
-        phone: '(81) 98888-0001',
-        userType: 'buyer',
-        buyerProfile: {
-          create: {
-            preferences: JSON.stringify({ categories: ['Moda', 'Acessórios'] }),
-            rating: 4.8,
-            totalReviews: 12
-          }
-        }
-      }
-    })
-    await sleep(100)
+  const [mariana, ana, donaMaria, joao] = users
 
-    const joao = await prisma.user.create({
-      data: {
-        name: 'João Lima',
-        email: 'joao.lima@gmail.com',
-        password: 'senha123',
-        phone: '(81) 98888-0004',
-        userType: 'buyer',
-        buyerProfile: {
-          create: {
-            preferences: JSON.stringify({ categories: ['Eletrônicos'] }),
-            rating: 4.5,
-            totalReviews: 8
-          }
-        }
-      }
-    })
-    await sleep(100)
+  // Lojas
+  const lojas = await Promise.all([
+    prisma.store.create({ data: { sellerId: ana.id, name: 'Ana Costa Modas', cpfCnpj: '123.456.789-00', segment: 'Moda Feminina Casual', distance: '5km' } }),
+    prisma.store.create({ data: { sellerId: donaMaria.id, name: 'Boutique da Maria', cpfCnpj: '987.654.321-00', segment: 'Moda Festa + Conjuntinhos', distance: '10km' } })
+  ])
 
-    const ana = await prisma.user.create({
-      data: {
-        name: 'Ana Costa',
-        email: 'ana.costa@modamei.com',
-        password: 'senha123',
-        phone: '(81) 98888-0002',
-        userType: 'seller',
-        sellerProfile: {
-          create: {
-            cpfCnpj: '123.456.789-00',
-            businessName: 'Ana Costa Modas',
-            businessSegment: 'Moda Feminina Casual',
-            about: 'Loja especializada em roupas femininas modernas e confortáveis',
-            rating: 4.9,
-            totalReviews: 45,
-            verified: true
-          }
-        }
-      }
-    })
-    await sleep(100)
+  const [lojaAna, lojaMaria] = lojas
 
-    const donaMaria = await prisma.user.create({
-      data: {
-        name: 'Dona Maria',
-        email: 'donamaria.boutique@gmail.com',
-        password: 'senha123',
-        phone: '(81) 98888-0003',
-        userType: 'seller',
-        sellerProfile: {
-          create: {
-            cpfCnpj: '987.654.321-00',
-            businessName: 'Boutique da Maria',
-            businessSegment: 'Moda Festa',
-            about: 'Especialista em roupas para festas, eventos e ocasiões especiais',
-            rating: 4.7,
-            totalReviews: 23,
-            verified: true
-          }
-        }
-      }
-    })
+  // Produtos
+  const products = await Promise.all([
+    // === 25 PRODUTOS DA LOJA ANA ===
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Vestido Midi Preto', category: 'Vestido', price: 129.90, stock: 15, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Calça Jeans Mom Azul Clara', category: 'Calça', price: 119.90, stock: 20, sizes: '36, 38, 40', colors: 'Azul Claro' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Cropped Branco Algodão', category: 'Blusa', price: 49.90, stock: 25, sizes: 'P, M, G', colors: 'Branco' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Camisa Social Azul Clara', category: 'Camisa', price: 89.90, stock: 18, sizes: 'P, M, G', colors: 'Azul Claro' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Saia Lápis Preta', category: 'Saia', price: 79.90, stock: 14, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Short Jeans Cintura Alta', category: 'Short', price: 69.90, stock: 22, sizes: '36, 38, 40, 42', colors: 'Azul Jeans' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Jaqueta Jeans Oversized', category: 'Jaqueta', price: 159.90, stock: 12, sizes: 'P, M, G', colors: 'Azul Escuro' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Regata Cinza Mescla', category: 'Regata', price: 39.90, stock: 28, sizes: 'P, M, G', colors: 'Cinza' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Vestido Longo Floral', category: 'Vestido', price: 139.90, stock: 10, sizes: 'P, M, G', colors: 'Floral Rosa' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Tênis Casual Branco', category: 'Tênis', price: 159.90, stock: 16, sizes: '34, 35, 36, 37, 38, 39', colors: 'Branco' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Calça Jogger Preta', category: 'Calça', price: 99.90, stock: 20, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Cropped Canelado Preto', category: 'Blusa', price: 49.90, stock: 18, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Blusa Rosa Clara', category: 'Blusa', price: 54.90, stock: 25, sizes: 'P, M, G', colors: 'Rosa Claro' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Macacão Pantacourt Terracota', category: 'Macacão', price: 149.90, stock: 10, sizes: 'P, M, G', colors: 'Terracota' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Blazer Bege Feminino', category: 'Blazer', price: 179.90, stock: 8, sizes: 'P, M, G', colors: 'Bege' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Top Fitness Preto', category: 'Top', price: 39.90, stock: 22, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Legging Preta Compressão', category: 'Calça', price: 89.90, stock: 15, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Blusa Tricô Gola Alta Bege', category: 'Blusa', price: 79.90, stock: 12, sizes: 'P, M, G', colors: 'Bege' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Calça Alfaiataria Preta', category: 'Calça', price: 119.90, stock: 10, sizes: '36, 38, 40, 42', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Sandália Dourada Rasteira', category: 'Sandália', price: 69.90, stock: 18, sizes: '34, 35, 36, 37, 38, 39', colors: 'Dourado' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Sandália Salto Preto', category: 'Sandália', price: 109.90, stock: 12, sizes: '34, 35, 36, 37, 38, 39', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Bolsa Transversal Preta', category: 'Bolsa', price: 89.90, stock: 20, sizes: 'Único', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Chinelo Slide Preto', category: 'Chinelo', price: 39.90, stock: 26, sizes: '34, 35, 36, 37, 38, 39', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Vestido Tubinho Vermelho', category: 'Vestido', price: 139.90, stock: 8, sizes: 'P, M, G', colors: 'Vermelho' } }),
+  prisma.product.create({ data: { storeId: lojaAna.id, name: 'Vestido Jeans Feminino', category: 'Vestido', price: 119.90, stock: 14, sizes: 'P, M, G', colors: 'Jeans' } }),
 
-    await sleep(500)
+  // === 25 PRODUTOS DA LOJA MARIA ===
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Camiseta Feminina Branca', category: 'Camiseta', price: 49.90, stock: 23, sizes: 'P, M, G', colors: 'Branco' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Jaqueta Corta-Vento Azul', category: 'Jaqueta', price: 159.90, stock: 10, sizes: 'P, M, G', colors: 'Azul Marinho' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Moletom Rosa Oversized', category: 'Moletom', price: 89.90, stock: 16, sizes: 'P, M, G', colors: 'Rosa' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Saia Plissada Bege', category: 'Saia', price: 79.90, stock: 18, sizes: 'P, M, G', colors: 'Bege' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Top Faixa Branco', category: 'Top', price: 39.90, stock: 20, sizes: 'P, M, G', colors: 'Branco' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Calça Flare Preta', category: 'Calça', price: 109.90, stock: 14, sizes: '36, 38, 40, 42', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Vestido Listrado Azul', category: 'Vestido', price: 99.90, stock: 12, sizes: 'P, M, G', colors: 'Listrado Azul' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Camiseta Preta Oversized', category: 'Camiseta', price: 59.90, stock: 22, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Calça Cargo Verde Militar', category: 'Calça', price: 129.90, stock: 10, sizes: '36, 38, 40', colors: 'Verde Militar' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Short Saia Preto Academia', category: 'Short', price: 54.90, stock: 18, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Tênis Esportivo Preto', category: 'Tênis', price: 159.90, stock: 14, sizes: '34, 35, 36, 37, 38, 39', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Blusa Ombro a Ombro Rosa', category: 'Blusa', price: 59.90, stock: 24, sizes: 'P, M, G', colors: 'Rosa' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Cardigan Cinza Mescla', category: 'Cardigan', price: 89.90, stock: 12, sizes: 'P, M, G', colors: 'Cinza' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Legging Azul Marinho', category: 'Calça', price: 79.90, stock: 17, sizes: 'P, M, G', colors: 'Azul Marinho' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Blusa Social Manga Bufante', category: 'Blusa', price: 69.90, stock: 18, sizes: 'P, M, G', colors: 'Branco' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Cropped Tie Dye Colorido', category: 'Blusa', price: 49.90, stock: 20, sizes: 'P, M, G', colors: 'Colorido' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Camisa Preta Feminina', category: 'Camisa', price: 79.90, stock: 16, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Vestido Renda Branco', category: 'Vestido', price: 129.90, stock: 10, sizes: 'P, M, G', colors: 'Branco' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Moletom Preto Capuz', category: 'Moletom', price: 89.90, stock: 18, sizes: 'P, M, G', colors: 'Preto' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Bolsa Nude Elegante', category: 'Bolsa', price: 99.90, stock: 15, sizes: 'Único', colors: 'Nude' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Top Vermelho Festa', category: 'Top', price: 39.90, stock: 20, sizes: 'P, M, G', colors: 'Vermelho' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Saia Jeans Curta Azul Clara', category: 'Saia', price: 69.90, stock: 22, sizes: '34, 36, 38', colors: 'Azul Claro' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Tênis Chunky Branco', category: 'Tênis', price: 169.90, stock: 14, sizes: '34, 35, 36, 37, 38, 39', colors: 'Branco' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Vestido Floral Preto', category: 'Vestido', price: 139.90, stock: 12, sizes: 'P, M, G', colors: 'Preto Floral' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Blusa Verde Oliva', category: 'Blusa', price: 54.90, stock: 18, sizes: 'P, M, G', colors: 'Verde Oliva' } }),
+  prisma.product.create({ data: { storeId: lojaMaria.id, name: 'Vestido Festa Longo', category: 'Festa', price: 229.90, stock: 5, sizes: 'M', colors: 'Vermelho, Azul' } })
+  ])
 
-    // ============ CRIAÇÃO DE ENDEREÇOS ============
-    console.log('📍 Criando endereços...')
-    
-    const address1 = await prisma.address.create({
-      data: {
-        userId: mariana.id,
-        street: 'Rua das Flores',
-        number: '123',
-        complement: 'Apto 45',
-        city: 'Recife',
-        state: 'PE',
-        zipCode: '50010-000',
-        isDefault: true
-      }
-    })
-    await sleep(100)
+  // Reservas
+  await prisma.reservation.create({ data: { productId: products[0].id, buyerId: mariana.id, sellerId: lojaAna.sellerId, date: new Date('2025-02-15'), status: 'AGUARDANDO_RETIRADA', note: 'Cliente solicitou provar na loja' } })
+  await prisma.reservation.create({ data: { productId: products[3].id, buyerId: joao.id, sellerId: lojaMaria.sellerId, date: new Date('2025-02-15'), status: 'CONFIRMADA', note: 'Reserva válida por 24h' } })
+  await prisma.reservation.create({ data: { productId: products[1].id, buyerId: mariana.id, sellerId: lojaAna.sellerId, date: new Date('2025-02-16'), status: 'CANCELADA', note: 'Cliente desistiu' } })
+  await prisma.reservation.create({ data: { productId: products[2].id, buyerId: joao.id, sellerId: lojaMaria.sellerId, date: new Date('2025-02-17'), status: 'EXPIRADA', note: 'Não retirou no prazo' } })
 
-    const address2 = await prisma.address.create({
-      data: {
-        userId: joao.id,
-        street: 'Avenida Boa Viagem',
-        number: '456',
-        city: 'Recife',
-        state: 'PE',
-        zipCode: '51010-130',
-        isDefault: true
-      }
-    })
+  console.log('Seed completo')
+}
 
-    const addresses = [address1, address2]
-
-    await sleep(500)
-
-    // ============ CRIAÇÃO DE LOJAS ============
-    console.log('🏪 Criando lojas...')
-    
-    const storeAna = await prisma.store.create({
-      data: {
-        sellerId: ana.id,
-        name: 'Ana Costa Modas',
-        description: 'Loja de moda feminina casual com peças exclusivas',
-        distance: 5000,
-        latitude: -8.0515,
-        longitude: -34.8811,
-        rating: 4.9,
-        totalReviews: 45
-      }
-    })
-    await sleep(100)
-
-    const storeMaria = await prisma.store.create({
-      data: {
-        sellerId: donaMaria.id,
-        name: 'Boutique da Maria',
-        description: 'Especialista em roupas para festas e eventos',
-        distance: 10000,
-        latitude: -8.0520,
-        longitude: -34.8820,
-        rating: 4.7,
-        totalReviews: 23
-      }
-    })
-
-    const stores = [storeAna, storeMaria]
-
-    await sleep(500)
-
-    // ============ CRIAÇÃO DE PRODUTOS ============
-    console.log('📦 Criando produtos...')
-    
-    const vestidoFloral = await prisma.product.create({
-      data: {
-        storeId: storeAna.id,
-        name: 'Vestido Floral Curto',
-        description: 'Vestido leve em algodão com estampa floral, perfeito para o verão',
-        category: 'Vestido',
-        price: 89.90,
-        discount: 10,
-        stock: 12,
-        image: 'https://via.placeholder.com/300?text=Vestido+Floral',
-        variants: {
-          create: [
-            { size: 'P', color: 'Azul', colorHex: '#0066cc', sku: 'VFC-AZ-P', stock: 3 },
-            { size: 'M', color: 'Azul', colorHex: '#0066cc', sku: 'VFC-AZ-M', stock: 4 },
-            { size: 'G', color: 'Rosa', colorHex: '#ff69b4', sku: 'VFC-RS-G', stock: 5 }
-          ]
-        }
-      }
-    })
-    await sleep(100)
-
-    const blusaOmbro = await prisma.product.create({
-      data: {
-        storeId: storeAna.id,
-        name: 'Blusa Ombro a Ombro',
-        description: 'Blusa tendência com corte ombro a ombro',
-        category: 'Blusas',
-        price: 59.90,
-        stock: 20,
-        image: 'https://via.placeholder.com/300?text=Blusa+Ombro',
-        variants: {
-          create: [
-            { size: 'P', color: 'Branco', colorHex: '#ffffff', sku: 'BOO-BR-P', stock: 10 },
-            { size: 'M', color: 'Preto', colorHex: '#000000', sku: 'BOO-PT-M', stock: 10 }
-          ]
-        }
-      }
-    })
-    await sleep(100)
-
-    const conjuntoSocial = await prisma.product.create({
-      data: {
-        storeId: storeMaria.id,
-        name: 'Conjunto Social Feminino',
-        description: 'Conjunto elegante para eventos corporativos e formais',
-        category: 'Conjunto',
-        price: 149.90,
-        stock: 8,
-        image: 'https://via.placeholder.com/300?text=Conjunto+Social',
-        variants: {
-          create: [
-            { size: 'M', color: 'Preto', colorHex: '#000000', sku: 'CSF-PT-M', stock: 4 },
-            { size: 'G', color: 'Preto', colorHex: '#000000', sku: 'CSF-PT-G', stock: 4 }
-          ]
-        }
-      }
-    })
-    await sleep(100)
-
-    const vestidoFesta = await prisma.product.create({
-      data: {
-        storeId: storeMaria.id,
-        name: 'Vestido Festa Longo',
-        description: 'Vestido sofisticado para festas e ocasiões especiais',
-        category: 'Festa',
-        price: 229.90,
-        discount: 15,
-        stock: 5,
-        image: 'https://via.placeholder.com/300?text=Vestido+Festa',
-        variants: {
-          create: [
-            { size: 'M', color: 'Vermelho', colorHex: '#ff0000', sku: 'VFL-VM-M', stock: 2 },
-            { size: 'M', color: 'Azul', colorHex: '#0066cc', sku: 'VFL-AZ-M', stock: 3 }
-          ]
-        }
-      }
-    })
-
-    const products = [vestidoFloral, blusaOmbro, conjuntoSocial, vestidoFesta]
-
-    await sleep(500)
-
-    // ============ BUSCAR VARIANTES ============
-    console.log('🔍 Buscando variantes dos produtos...')
-    
-    const variantsVestidoFloral = await prisma.productVariant.findMany({
-      where: { productId: vestidoFloral.id }
-    })
-    await sleep(100)
-    
-    const variantsBlusaOmbro = await prisma.productVariant.findMany({
-      where: { productId: blusaOmbro.id }
-    })
-    await sleep(100)
-    
-    const variantsConjuntoSocial = await prisma.productVariant.findMany({
-      where: { productId: conjuntoSocial.id }
-    })
-    await sleep(100)
-    
-    const variantsVestidoFesta = await prisma.productVariant.findMany({
-      where: { productId: vestidoFesta.id }
-    })
-
-    await sleep(500)
-
-    // ============ CRIAÇÃO DE ITENS DO CARRINHO ============
-    console.log('🛒 Adicionando itens ao carrinho...')
-    
-    await prisma.cartItem.create({
-      data: {
-        userId: mariana.id,
-        productId: vestidoFloral.id,
-        quantity: 1,
-        variantId: variantsVestidoFloral[0].id
-      }
-    })
-    await sleep(100)
-
-    await prisma.cartItem.create({
-      data: {
-        userId: joao.id,
-        productId: conjuntoSocial.id,
-        quantity: 1,
-        variantId: variantsConjuntoSocial[0].id
-      }
-    })
-
-    await sleep(500)
-
-    // ============ CRIAÇÃO DE RESERVAS ============
-    console.log('📋 Criando reservas...')
-    
-    await prisma.reservation.create({
-      data: {
-        productId: vestidoFloral.id,
-        buyerId: mariana.id,
-        sellerId: ana.id,
-        visitDate: new Date('2025-12-20'),
-        status: 'pending',
-        notes: 'Cliente solicitou provar na loja',
-        items: {
-          create: {
-            variantId: variantsVestidoFloral[0].id,
-            quantity: 1
-          }
-        }
-      }
-    })
-    await sleep(100)
-
-    await prisma.reservation.create({
-      data: {
-        productId: vestidoFesta.id,
-        buyerId: joao.id,
-        sellerId: donaMaria.id,
-        visitDate: new Date('2025-12-21'),
-        status: 'confirmed',
-        notes: 'Reserva confirmada para retirada em 24h',
-        items: {
-          create: {
-            variantId: variantsVestidoFesta[0].id,
-            quantity: 1
-          }
-        }
-      }
-    })
-
-    await sleep(500)
-
-    // ============ CRIAÇÃO DE PEDIDOS ============
-    console.log('🎁 Criando pedidos...')
-    
-    await prisma.order.create({
-      data: {
-        orderId: '#1001',
-        storeId: storeAna.id,
-        buyerId: mariana.id,
-        sellerId: ana.id,
-        total: 89.90,
-        status: 'confirmed',
-        paymentMethod: 'credit_card',
-        addressId: addresses[0].id,
-        notes: 'Pedido prioritário',
-        items: {
-          create: {
-            productId: vestidoFloral.id,
-            variantId: variantsVestidoFloral[1].id,
-            quantity: 1,
-            price: 89.90
-          }
-        }
-      }
-    })
-    await sleep(100)
-
-    await prisma.order.create({
-      data: {
-        orderId: '#1002',
-        storeId: storeMaria.id,
-        buyerId: joao.id,
-        sellerId: donaMaria.id,
-        total: 229.90,
-        status: 'in_preparation',
-        paymentMethod: 'pix',
-        addressId: addresses[1].id,
-        items: {
-          create: {
-            productId: vestidoFesta.id,
-            variantId: variantsVestidoFesta[0].id,
-            quantity: 1,
-            price: 229.90,
-            discount: 34.49
-          }
-        }
-      }
-    })
-
-    await sleep(500)
-
-    // ============ CRIAÇÃO DE AVALIAÇÕES ============
-    console.log('⭐ Criando avaliações...')
-    
-    await prisma.review.create({
-      data: {
-        productId: vestidoFloral.id,
-        userId: mariana.id,
-        rating: 5,
-        comment: 'Produto excelente! Chegou rápido e bem embalado.'
-      }
-    })
-    await sleep(100)
-
-    await prisma.review.create({
-      data: {
-        productId: conjuntoSocial.id,
-        userId: joao.id,
-        rating: 4,
-        comment: 'Ótima qualidade, mas o tamanho foi um pouco apertado.'
-      }
-    })
-    await sleep(100)
-
-    await prisma.review.create({
-      data: {
-        storeId: storeAna.id,
-        userId: mariana.id,
-        rating: 5,
-        comment: 'Atendimento perfeito! Recomendo!'
-      }
-    })
-
-    console.log('✅ Seed completo com sucesso!')
-  } catch (e) {
-    console.error('❌ Erro durante seed:', e)
+main()
+  .catch(e => {
+    console.error(e)
     process.exit(1)
   } finally {
     await prisma.$disconnect()
